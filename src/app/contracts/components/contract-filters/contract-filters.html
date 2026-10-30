@@ -1,15 +1,14 @@
 <mat-form-field class="status">
   <mat-label>Статус</mat-label>
-  <mat-select value="DRAFT">
+  <mat-select [value]="status()" (selectionChange)="statusChange.emit($event.value)">
     <mat-option value="">Усі</mat-option>
-    <mat-option value="DRAFT">Чернетка</mat-option>
-    <mat-option value="ON_APPROVAL">На погодженні</mat-option>
-    <mat-option value="APPROVED">Погоджено</mat-option>
-    <mat-option value="REJECTED">Відхилено</mat-option>
+    @for (s of statuses; track s) {
+      <mat-option [value]="s">{{ s | statusLabel }}</mat-option>
+    }
   </mat-select>
 </mat-form-field>
 
 <mat-form-field class="search">
   <mat-label>Номер або контрагент</mat-label>
-  <input matInput />
+  <input matInput #search [value]="query()" (input)="queryChange.emit(search.value)" />
 </mat-form-field>

@@ -1,1 +1,4 @@
-<!-- заповнюється на кроці 3 -->
+<span class="text">{{ text() }}</span>
+@if (actionLabel(); as label) {
+  <button mat-button type="button" (click)="action.emit()">{{ label }}</button>
+}

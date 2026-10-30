@@ -19,6 +19,8 @@ export class ContractTable {
   readonly selectedId = input<number | null>(null);
 
   readonly open = output<number>();
+  /** Індекс сторінки mat-paginator (з 0). */
+  readonly pageChange = output<number>();
 
   protected readonly columns = ['number', 'counterparty', 'amount', 'status'];
 }

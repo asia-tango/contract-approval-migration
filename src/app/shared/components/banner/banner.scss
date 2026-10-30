@@ -1,0 +1,44 @@
+:host {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  padding: 8px 16px;
+  border: 1px solid;
+  border-radius: 8px;
+}
+
+:host(.banner-info) {
+  border-color: var(--mat-sys-secondary);
+  background: var(--mat-sys-secondary-container);
+  color: var(--mat-sys-on-secondary-container);
+}
+
+:host(.banner-success) {
+  border-color: var(--mat-sys-primary);
+  background: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
+}
+
+:host(.banner-warn) {
+  border-color: var(--mat-sys-tertiary);
+  background: var(--mat-sys-tertiary-container);
+  color: var(--mat-sys-on-tertiary-container);
+}
+
+:host(.banner-error) {
+  border-color: var(--mat-sys-error);
+  background: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
+}
+
+// На вузькому екрані кнопка переноситься під текст, нічого не вилазить за край.
+.text {
+  flex: 1 1 200px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+button {
+  flex: none;
+}

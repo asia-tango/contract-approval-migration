@@ -1,9 +1,18 @@
+// Широкий екран: таблиця скролиться всередині, пагінатор завжди видно внизу.
 :host {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .table-scroll {
-  overflow-x: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+mat-paginator {
+  flex: none;
 }
 
 table {
@@ -25,5 +34,12 @@ table {
 
   &.selected {
     background: var(--mat-sys-secondary-container);
+  }
+}
+
+// Вузький екран: без внутрішнього вертикального скролу, скролиться сторінка; горизонтальний — лишається.
+@media (max-width: 900px) {
+  .table-scroll {
+    overflow-y: visible;
   }
 }

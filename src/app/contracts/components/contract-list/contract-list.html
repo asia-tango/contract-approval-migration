@@ -1,9 +1,35 @@
-<app-contract-filters />
-<app-contract-table
-  [items]="listStore.items()"
-  [total]="listStore.total()"
-  [pageIndex]="listStore.pageIndex()"
-  [pageSize]="pageSize"
-  [selectedId]="cardStore.selectedId()"
-  (open)="cardStore.open($event)"
+<app-contract-filters
+  [status]="listStore.status()"
+  [query]="listStore.query()"
+  (statusChange)="listStore.setStatus($event)"
+  (queryChange)="listStore.setQuery($event)"
 />
+
+@if (listStore.error()) {
+  <app-banner
+    type="error"
+    [text]="messages.loadError"
+    actionLabel="Повторити"
+    (action)="listStore.reload()"
+  />
+}
+
+<div class="progress">
+  @if (listStore.loading()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+</div>
+
+@if (listStore.empty()) {
+  <app-empty-state text="Нічого не знайдено" />
+} @else {
+  <app-contract-table
+    [items]="listStore.items()"
+    [total]="listStore.total()"
+    [pageIndex]="listStore.pageIndex()"
+    [pageSize]="pageSize"
+    [selectedId]="cardStore.selectedId()"
+    (open)="cardStore.open($event)"
+    (pageChange)="listStore.setPage($event)"
+  />
+}

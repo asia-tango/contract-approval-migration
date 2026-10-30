@@ -6,8 +6,20 @@
   padding: 16px;
 }
 
+// Реєстр — висотою вікна і лишається на місці, коли сторінка скролиться через довгу картку.
+.list-column {
+  position: sticky;
+  top: 16px;
+  height: calc(100dvh - 32px);
+}
+
 @media (max-width: 900px) {
   :host {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .list-column {
+    position: static;
+    height: auto;
   }
 }

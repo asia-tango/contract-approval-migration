@@ -1,3 +1,36 @@
+// Широкий екран: висота колонки; фільтри зверху, таблиця з пагінатором займає решту.
 :host {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+app-contract-filters,
+app-banner,
+.progress {
+  flex: none;
+}
+
+app-banner {
+  margin-bottom: 8px;
+}
+
+// Місце під індикатор зарезервоване, щоб таблиця не стрибала.
+.progress {
+  height: 4px;
+}
+
+app-contract-table {
+  flex: 1 1 auto;
+}
+
+app-empty-state {
+  padding: 16px 0;
+}
+
+@media (max-width: 900px) {
+  :host {
+    height: auto;
+  }
 }
