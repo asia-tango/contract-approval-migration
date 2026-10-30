@@ -1,4 +1,4 @@
-import { Route } from '../models';
+import { ContractFormValue, FieldError, Route } from '../models';
 import { parseAmount } from './calc';
 
 /** Тексти — як у сервера (мок), крім порожньої дати. */
@@ -50,4 +50,37 @@ export function commentError(comment: string, route: Route | null): string | nul
   return route === 'COMMITTEE' && comment.trim().length < COMMITTEE_COMMENT_MIN_LENGTH
     ? VALIDATION_MESSAGES.commentForCommittee
     : null;
+}
+
+/** Поля форми, біля яких показуємо помилки сервера (422). Решту (`route`, `vatPayer`) — банером над кнопкою. */
+export const FIELDS_WITH_SERVER_ERROR = [
+  'counterparty',
+  'amount',
+  'currency',
+  'signDate',
+  'startDate',
+  'endDate',
+  'comment',
+] as const satisfies readonly (keyof ContractFormValue)[];
+
+/** Помилка сервера для поля — лише поки значення поля таке саме, як надіслане; змінив поле → помилка зникає. */
+export function serverFieldError(
+  errors: FieldError[],
+  field: string,
+  sentValue: unknown,
+  currentValue: unknown,
+): string | null {
+  const error = errors.find((e) => e.field === field);
+  if (!error) return null;
+  const same =
+    sentValue instanceof Date && currentValue instanceof Date
+      ? sentValue.getTime() === currentValue.getTime()
+      : sentValue === currentValue;
+  return same ? error.message : null;
+}
+
+/** Помилки сервера для полів, яких немає у формі (напр. `route`). */
+export function errorsWithoutField(errors: FieldError[]): FieldError[] {
+  const fields: readonly string[] = FIELDS_WITH_SERVER_ERROR;
+  return errors.filter((e) => !fields.includes(e.field));
 }

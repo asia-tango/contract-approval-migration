@@ -64,3 +64,28 @@ export interface ContractFormValue {
   endDate: Date | null;
   comment: string;
 }
+
+/** Помилка серверної валідації (422). `field` — поле `data` або `route`. */
+export interface FieldError {
+  field: string;
+  message: string;
+}
+
+/** Помилки 422 разом зі значенням форми, яке було надіслано. */
+export interface ServerValidation {
+  errors: FieldError[];
+  sent: ContractFormValue;
+}
+
+/** Тіло заявки без `requestId`: його генеруємо окремо, один раз на спробу. */
+export interface ApprovalPayload {
+  version: number;
+  route: Route;
+  data: ContractData;
+}
+
+/** `201` на `POST /api/contracts/{id}/approval-requests`. */
+export interface ApprovalCreated {
+  approvalRequestId: number;
+  status: 'PENDING';
+}

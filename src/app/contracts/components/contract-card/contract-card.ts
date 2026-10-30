@@ -7,6 +7,7 @@ import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { map } from 'rxjs';
 import { Banner } from '../../../shared/components/banner/banner';
@@ -19,6 +20,7 @@ import { equivalentHint } from '../../helpers/equivalent-hint';
 import { CARD_MESSAGES } from '../../messages';
 import { StatusLabelPipe } from '../../pipes/status-label-pipe';
 import { ContractCardStore } from '../../state/contract-card-store';
+import { SubmissionStore } from '../../state/submission-store';
 import { ContractCalc } from '../contract-calc/contract-calc';
 
 @Component({
@@ -32,6 +34,7 @@ import { ContractCalc } from '../contract-calc/contract-calc';
     MatDatepickerModule,
     MatButtonModule,
     MatProgressBarModule,
+    MatProgressSpinnerModule,
     Banner,
     EmptyState,
     StatusLabelPipe,
@@ -42,6 +45,7 @@ import { ContractCalc } from '../contract-calc/contract-calc';
 })
 export class ContractCard {
   protected readonly store = inject(ContractCardStore);
+  protected readonly submission = inject(SubmissionStore);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   protected readonly messages = CARD_MESSAGES;
 
@@ -52,6 +56,7 @@ export class ContractCard {
       const rates = this.store.ratesState();
       return rates.status === 'error' && rates.kind === 'date';
     },
+    () => this.submission.serverValidation(),
   );
   /** Значення разом з вимкненими полями: у режимі перегляду розрахунок теж потрібен. */
   protected readonly value = toSignal(this.form.valueChanges.pipe(map(() => this.form.getRawValue())), {
@@ -94,7 +99,7 @@ export class ContractCard {
       });
     });
     effect(() => {
-      const editable = this.store.editable();
+      const editable = this.submission.cardView().editable;
       untracked(() => (editable ? this.form.enable() : this.form.disable()));
     });
 
@@ -107,11 +112,16 @@ export class ContractCard {
     });
   }
 
-  /** Клік «Надіслати»: поки що лише перевірка форми (надсилання — крок 5). */
+  /**
+   * Клік «Надіслати». Touched — завжди, і при валідній формі: тоді й помилки 422 від сервера видно під полями.
+   * Невалідна форма — фокус на перше поле з помилкою, нічого не надсилаємо.
+   */
   protected submit(): void {
+    this.form.markAllAsTouched();
     if (this.form.invalid) {
-      this.form.markAllAsTouched();
       this.host.nativeElement.querySelector<HTMLElement>('.ng-invalid[formControlName]')?.focus();
+      return;
     }
+    this.submission.submit(this.form.getRawValue());
   }
 }

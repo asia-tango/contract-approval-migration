@@ -2,7 +2,7 @@
   <app-empty-state text="Оберіть договір зі списку" />
 } @else {
   <div class="progress">
-    @if (store.loading()) {
+    @if (store.loading() || store.reloading()) {
       <mat-progress-bar mode="indeterminate" />
     }
   </div>
@@ -33,6 +33,7 @@
             <mat-option value="USD">USD</mat-option>
             <mat-option value="EUR">EUR</mat-option>
           </mat-select>
+          <mat-error>{{ form.controls.currency.errors?.['message'] }}</mat-error>
         </mat-form-field>
       </div>
 
@@ -86,7 +87,8 @@
         <mat-error>{{ form.controls.comment.errors?.['message'] }}</mat-error>
       </mat-form-field>
 
-      @if (store.statusEditable()) {
+      @let view = submission.cardView();
+      @if (view.showSubmit) {
         <div class="banners">
           @if (store.meError()) {
             <app-banner
@@ -98,16 +100,24 @@
           } @else if (store.meLoaded() && !store.canEdit()) {
             <app-banner type="info" [text]="messages.noRights" />
           }
+          @if (view.banner; as banner) {
+            <app-banner
+              [type]="banner.type"
+              [text]="banner.text"
+              [actionLabel]="banner.retry ? 'Повторити' : undefined"
+              (action)="submission.retryConflictReload()"
+            />
+          }
         </div>
 
         <div class="actions">
-          <button
-            mat-flat-button
-            type="button"
-            [disabled]="!store.editable() || ratesBlocked()"
-            (click)="submit()"
-          >
-            Надіслати на погодження
+          <button mat-flat-button type="button" [disabled]="!view.canSubmit || ratesBlocked()" (click)="submit()">
+            @if (view.sending) {
+              <mat-progress-spinner mode="indeterminate" diameter="18" aria-hidden="true" />
+              Надсилаємо…
+            } @else {
+              Надіслати на погодження
+            }
           </button>
         </div>
       }

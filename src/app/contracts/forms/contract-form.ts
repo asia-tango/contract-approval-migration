@@ -6,10 +6,12 @@ import {
   commentError,
   counterpartyError,
   endDateError,
+  FIELDS_WITH_SERVER_ERROR,
   requiredDateError,
+  serverFieldError,
   signDateError,
 } from '../helpers/validation';
-import { ContractFormValue, Currency, Rates } from '../models';
+import { ContractFormValue, Currency, Rates, ServerValidation } from '../models';
 
 export type ContractForm = FormGroup<{
   counterparty: FormControl<string>;
@@ -31,6 +33,15 @@ function rule<T>(check: (value: T, form: ContractFormValue | null) => string | n
   };
 }
 
+/** Помилка сервера (422) для поля, поки його значення таке саме, як надіслане. */
+function serverRule(field: keyof ContractFormValue, server: () => ServerValidation | null): ValidatorFn {
+  return (control: AbstractControl) => {
+    const validation = server();
+    const message = validation && serverFieldError(validation.errors, field, validation.sent[field], control.value);
+    return message ? { message } : null;
+  };
+}
+
 function apiDate(date: Date | null | undefined): string | null {
   return date ? toApiDate(date) : null;
 }
@@ -40,13 +51,16 @@ function apiDate(date: Date | null | undefined): string | null {
  * компонент перезапускає при зміні форми, а `comment` і `signDate` — ще й при зміні курсу.
  * @param rates курси на дату підписання або null (вантажиться / помилка — правило коментаря не застосовується)
  * @param noRatesForDate сервер курсів відповів 404 / 400 на дату підписання
+ * @param serverValidation помилки 422 останнього надсилання або null. Окремо не перезапускаються: під час
+ *   надсилання форма вимкнена, а `enable()` після відповіді перевіряє всі поля заново.
  */
 export function createContractForm(
   rates: () => Rates | null,
   limit: number,
   noRatesForDate: () => boolean,
+  serverValidation: () => ServerValidation | null,
 ): ContractForm {
-  return new FormGroup({
+  const form: ContractForm = new FormGroup({
     counterparty: new FormControl('', { nonNullable: true, validators: rule(counterpartyError) }),
     amount: new FormControl('', { nonNullable: true, validators: rule(amountError) }),
     currency: new FormControl<Currency>('UAH', { nonNullable: true }),
@@ -67,4 +81,8 @@ export function createContractForm(
       ),
     }),
   });
+  for (const field of FIELDS_WITH_SERVER_ERROR) {
+    form.controls[field].addValidators(serverRule(field, serverValidation));
+  }
+  return form;
 }

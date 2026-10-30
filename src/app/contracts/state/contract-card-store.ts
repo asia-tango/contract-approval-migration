@@ -1,9 +1,12 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
+  Observable,
   Subject,
   catchError,
+  defer,
   distinctUntilChanged,
+  finalize,
   map,
   merge,
   of,
@@ -53,6 +56,8 @@ export class ContractCardStore {
     return contract?.id === this.selected() ? contract : null;
   });
   readonly loading = signal(false);
+  /** Перечитування того самого договору (після 409). */
+  readonly reloading = signal(false);
   readonly loadError = signal(false);
   readonly meError = signal(false);
   /** Дані для заповнення форми: змінюються, лише коли завантажено договір. */
@@ -67,7 +72,8 @@ export class ContractCardStore {
   });
   readonly editable = computed(() => this.canEdit() && this.statusEditable());
 
-  readonly ratesState = signal<RatesState>({ status: 'idle' });
+  private readonly ratesResult = signal<RatesState>({ status: 'idle' });
+  readonly ratesState = this.ratesResult.asReadonly();
   /** Усі курси на дату підписання або null (вантажиться / помилка / немає дати). */
   readonly rates = computed(() => {
     const state = this.ratesState();
@@ -126,7 +132,7 @@ export class ContractCardStore {
         ),
         takeUntilDestroyed(),
       )
-      .subscribe((state) => this.ratesState.set(state));
+      .subscribe((state) => this.ratesResult.set(state));
   }
 
   open(id: number): void {
@@ -135,6 +141,29 @@ export class ContractCardStore {
     // Курси попереднього договору більше не потрібні: запит скасовується, стан — порожній.
     this.ratesKey$.next({ contractId: id, date: null });
     this.open$.next(id);
+  }
+
+  /**
+   * Перечитати відкритий договір після 409: форму не скидаємо (formData не змінюється) —
+   * оновлюються лише версія і знімок. Дані на екрані лишаються, поверх — індикатор.
+   */
+  reloadKeepingForm(): Observable<Contract> {
+    return defer(() => {
+      this.reloading.set(true);
+      return this.api.get(this.selected()!);
+    }).pipe(
+      tap((contract) => {
+        if (contract.id === this.selected()) this.loaded.set(contract);
+      }),
+      finalize(() => this.reloading.set(false)),
+    );
+  }
+
+  /** Заявку створено (201): договір на погодженні локально, без перечитування — сервер міг її ще не застосувати. */
+  setOnApproval(approvalRequestId: number): void {
+    this.loaded.update((contract) =>
+      contract && { ...contract, status: 'ON_APPROVAL', lastApprovalRequestId: approvalRequestId },
+    );
   }
 
   /** «Повторити» після помилки завантаження — як повторний вибір договору. */
