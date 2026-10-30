@@ -1,36 +1,57 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { Observable, Subject, catchError, exhaustMap, map, merge, of, startWith, switchMap, tap, timeout } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import {
+  EMPTY,
+  Observable,
+  Subject,
+  catchError,
+  defer,
+  exhaustMap,
+  filter,
+  map,
+  merge,
+  mergeMap,
+  of,
+  startWith,
+  switchMap,
+  tap,
+  timeout,
+} from 'rxjs';
 import { BannerType } from '../../shared/components/banner/banner';
 import { COMMITTEE_LIMIT_UAH } from '../committee-config';
 import { ApprovalApi } from '../data-access/approval-api';
+import { PendingSubmissionStorage } from '../data-access/pending-submission-storage';
 import { SubmitError, submitErrorOf } from '../helpers/api-error';
-import { toApprovalPayload } from '../helpers/contract-mapper';
+import { toApprovalPayload, toFormValue } from '../helpers/contract-mapper';
 import { SUBMIT_TIMEOUT_MS } from '../helpers/submit-policy';
 import { errorsWithoutField } from '../helpers/validation';
 import { APPROVAL_MESSAGES, CARD_MESSAGES, SUBMIT_MESSAGES } from '../messages';
-import { ApprovalPayload, ApprovalRequest, ContractFormValue, FieldError, ServerValidation } from '../models';
+import {
+  ApprovalRequest,
+  Contract,
+  ContractFormValue,
+  FieldError,
+  ServerValidation,
+  SubmissionAttempt,
+} from '../models';
 import { ContractCardStore } from './contract-card-store';
 import { ContractListStore } from './contract-list-store';
 
-/** Одна заявка: requestId і payload створюються один раз і не змінюються при повторі. */
-interface Attempt {
-  contractId: number;
-  requestId: string;
-  payload: ApprovalPayload;
-}
-
-/** Заявка і значення форми, з якого її побудовано (для помилок 422 біля полів). */
+/**
+ * Заявка і значення форми, з якого її побудовано (для помилок 422 біля полів).
+ * `recovery` — те саме надсилання, відновлене із запису (після перезавантаження або повернення до договору).
+ */
 interface SubmitRequest {
-  attempt: Attempt;
+  attempt: SubmissionAttempt;
   value: ContractFormValue;
+  recovery: boolean;
 }
 
 /** `reloadFailed` — 409, але перечитати договір не вдалося: надсилання заблоковане до успішного перечитування. */
 export type SubmissionState =
   | { status: 'idle' }
-  | { status: 'sending'; attempt: Attempt }
-  | { status: 'unknown'; attempt: Attempt }
+  | { status: 'sending'; attempt: SubmissionAttempt; recovery: boolean }
+  | { status: 'unknown'; attempt: SubmissionAttempt }
   | { status: 'failed'; kind: 'forbidden' | 'server' | 'conflict' | 'versionStuck' | 'reloadFailed' }
   | { status: 'failed'; kind: 'validation'; errors: FieldError[]; sent: ContractFormValue };
 
@@ -67,6 +88,7 @@ const IDLE: SubmissionState = { status: 'idle' };
 
 function bannerFor(state: SubmissionState): SubmitBanner | null {
   const banner = (type: BannerType, text: string, retry = false): SubmitBanner => ({ type, text, retry });
+  if (state.status === 'sending') return state.recovery ? banner('info', SUBMIT_MESSAGES.recovery) : null;
   if (state.status === 'unknown') return banner('warn', SUBMIT_MESSAGES.unknown);
   if (state.status !== 'failed') return null;
   switch (state.kind) {
@@ -109,6 +131,7 @@ export class SubmissionStore {
   private readonly api = inject(ApprovalApi);
   private readonly cardStore = inject(ContractCardStore);
   private readonly listStore = inject(ContractListStore);
+  private readonly storage = inject(PendingSubmissionStorage);
 
   private readonly submit$ = new Subject<SubmitRequest>();
   private readonly reloadRetry$ = new Subject<number>();
@@ -143,14 +166,20 @@ export class SubmissionStore {
 
   constructor() {
     // Усе надсилання — в межах обраного договору: при зміні договору спроба відписується, стан — idle.
-    toObservable(this.cardStore.selectedId)
+    // Запис у сховищі при цьому лишається: при поверненні до договору надсилання відновиться.
+    // Подія вибору синхронна, тож підписка на opened$ гарантовано є до відповіді на запит договору.
+    this.cardStore.selected$
       .pipe(
-        switchMap(() =>
-          merge(
-            this.submit$.pipe(exhaustMap((request) => this.send(request))),
+        switchMap((id) => {
+          const recover$ = this.cardStore.opened$.pipe(
+            filter((contract) => contract.id === id),
+            mergeMap((contract) => this.recover(contract)),
+          );
+          return merge(
+            merge(this.submit$, recover$).pipe(exhaustMap((request) => this.send(request))),
             this.reloadRetry$.pipe(exhaustMap((version) => this.resolveConflict(version))),
-          ).pipe(startWith(IDLE)),
-        ),
+          ).pipe(startWith(IDLE));
+        }),
         takeUntilDestroyed(),
       )
       .subscribe((state) => this.current.set(state));
@@ -161,7 +190,7 @@ export class SubmissionStore {
     if (!this.cardView().canSubmit) return;
     const state = this.state();
     const attempt = state.status === 'unknown' ? state.attempt : this.newAttempt(value);
-    if (attempt) this.submit$.next({ attempt, value });
+    if (attempt) this.submit$.next({ attempt, value, recovery: false });
   }
 
   /** «Повторити» після невдалого перечитування договору при 409. */
@@ -173,32 +202,55 @@ export class SubmissionStore {
     }
   }
 
-  private newAttempt(value: ContractFormValue): Attempt | null {
+  private newAttempt(value: ContractFormValue): SubmissionAttempt | null {
     const contract = this.cardStore.contract();
     if (!contract) return null;
     const payload = toApprovalPayload(value, contract.version, this.cardStore.rates(), COMMITTEE_LIMIT_UAH);
     return payload && { contractId: contract.id, requestId: crypto.randomUUID(), payload };
   }
 
+  /**
+   * Договір відкрито, і для нього є запис незавершеного надсилання. DRAFT / REJECTED — форма заповнюється даними
+   * із запису і йде те саме надсилання (той самий requestId і payload). Інший статус — заявку вже створено, запис зайвий.
+   */
+  private recover(contract: Contract): Observable<SubmitRequest> {
+    const attempt = this.storage.read(contract.id);
+    if (!attempt) return EMPTY;
+    if (contract.status !== 'DRAFT' && contract.status !== 'REJECTED') {
+      this.storage.remove(contract.id);
+      return EMPTY;
+    }
+    const value = toFormValue(attempt.payload.data);
+    this.cardStore.setFormData(value);
+    return of({ attempt, value, recovery: true });
+  }
+
   private send(request: SubmitRequest): Observable<SubmissionState> {
-    const { contractId, requestId, payload } = request.attempt;
+    const { attempt, recovery } = request;
+    const { contractId, requestId, payload } = attempt;
+    // Запис — до POST: якщо відповіді не дочекаємось (таймаут, перезавантаження, інший договір), відновимо з нього.
     // Одна спроба — окремий потік; таймаут — на спробу, а не на все надсилання.
-    const try$ = this.api.create(contractId, requestId, payload).pipe(timeout(SUBMIT_TIMEOUT_MS));
+    const try$ = defer(() => {
+      this.storage.save(attempt);
+      return this.api.create(contractId, requestId, payload);
+    }).pipe(timeout(SUBMIT_TIMEOUT_MS));
     return try$.pipe(
       tap((created) => {
+        this.storage.remove(contractId);
         this.cardStore.setOnApproval(created.approvalRequestId);
         this.listStore.reload();
       }),
       map(() => IDLE),
       catchError((error) => this.failure(submitErrorOf(error), request)),
-      startWith<SubmissionState>({ status: 'sending', attempt: request.attempt }),
+      startWith<SubmissionState>({ status: 'sending', attempt, recovery }),
     );
   }
 
+  /** Доля заявки невідома — запис лишається. Відповідь остаточна — запис видаляємо: далі буде новий requestId. */
   private failure(error: SubmitError, { attempt, value }: SubmitRequest): Observable<SubmissionState> {
+    if (error.kind === 'unknown') return of({ status: 'unknown', attempt });
+    this.storage.remove(attempt.contractId);
     switch (error.kind) {
-      case 'unknown':
-        return of({ status: 'unknown', attempt });
       case 'conflict':
         return this.resolveConflict(attempt.payload.version);
       case 'validation':

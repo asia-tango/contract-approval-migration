@@ -64,6 +64,13 @@ export class ContractCardStore {
   private readonly meRetry$ = new Subject<void>();
   private readonly ratesKey$ = new Subject<RatesKey>();
   private readonly ratesRetry$ = new Subject<RatesKey>();
+  private readonly selectedContract$ = new Subject<number>();
+  private readonly openedContract$ = new Subject<Contract>();
+
+  /** Обрано інший договір — синхронно, до запиту договору. */
+  readonly selected$ = this.selectedContract$.asObservable();
+  /** Договір завантажено при виборі (або «Повторити»); не при перечитуванні того самого договору. */
+  readonly opened$ = this.openedContract$.asObservable();
 
   private readonly me = signal<Me | null>(null);
   private readonly selected = signal<number | null>(null);
@@ -80,8 +87,9 @@ export class ContractCardStore {
   readonly reloading = signal(false);
   readonly loadError = signal(false);
   readonly meError = signal(false);
-  /** Дані для заповнення форми: змінюються, лише коли завантажено договір. */
-  readonly formData = signal<ContractFormValue | null>(null);
+  private readonly formValue = signal<ContractFormValue | null>(null);
+  /** Дані для заповнення форми: змінюються, лише коли завантажено договір або відновлюється надсилання. */
+  readonly formData = this.formValue.asReadonly();
 
   /** Поки /api/me не завантажено — лише читання. */
   readonly canEdit = computed(() => this.me()?.roles.includes(EDITOR_ROLE) ?? false);
@@ -132,13 +140,14 @@ export class ContractCardStore {
           return;
         }
         this.loaded.set(contract);
-        this.formData.set(toFormValue(contract));
+        this.formValue.set(toFormValue(contract));
         this.ratesKey$.next({ contractId: contract.id, date: contract.signDate });
         // Умова старту — лише при виборі договору (і «Повторити»), не при перечитуванні після рішення.
         const { status, lastApprovalRequestId: requestId } = contract;
         if (requestId !== null && (status === 'ON_APPROVAL' || status === 'REJECTED')) {
           this.poll$.next({ requestId, pending: status === 'ON_APPROVAL' });
         }
+        this.openedContract$.next(contract);
       });
 
     this.poll$
@@ -174,6 +183,7 @@ export class ContractCardStore {
   open(id: number): void {
     if (id === this.selected()) return;
     this.selected.set(id);
+    this.selectedContract$.next(id);
     // Курси й опитування попереднього договору більше не потрібні: запити скасовуються, стан — порожній.
     this.ratesKey$.next({ contractId: id, date: null });
     this.poll$.next(null);
@@ -205,6 +215,11 @@ export class ContractCardStore {
       contract && { ...contract, status: 'ON_APPROVAL', lastApprovalRequestId: approvalRequestId },
     );
     this.poll$.next({ requestId: approvalRequestId, pending: true });
+  }
+
+  /** Заповнити форму іншими даними — при відновленні: тим, що реально надіслано. */
+  setFormData(value: ContractFormValue): void {
+    this.formValue.set(value);
   }
 
   /** «Повторити» після помилки завантаження — як повторний вибір договору. */
@@ -270,7 +285,7 @@ export class ContractCardStore {
     }).pipe(
       tap((contract) => {
         this.loaded.set(contract);
-        this.formData.set(toFormValue(contract));
+        this.formValue.set(toFormValue(contract));
       }),
       catchError(() => EMPTY),
       finalize(() => this.reloading.set(false)),

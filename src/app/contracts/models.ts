@@ -84,6 +84,16 @@ export interface ApprovalPayload {
   data: ContractData;
 }
 
+/**
+ * Заявка на надсилання: requestId і payload створюються один раз і не змінюються при повторі.
+ * У такому самому вигляді зберігається в sessionStorage для відновлення після перезавантаження.
+ */
+export interface SubmissionAttempt {
+  contractId: number;
+  requestId: string;
+  payload: ApprovalPayload;
+}
+
 /** `201` на `POST /api/contracts/{id}/approval-requests`. */
 export interface ApprovalCreated {
   approvalRequestId: number;
