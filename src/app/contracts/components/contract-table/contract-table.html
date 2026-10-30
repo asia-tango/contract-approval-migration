@@ -1,25 +1,38 @@
 <div class="table-scroll">
-  <table mat-table [dataSource]="[]">
+  <table mat-table [dataSource]="items()">
     <ng-container matColumnDef="number">
       <th mat-header-cell *matHeaderCellDef>№</th>
-      <td mat-cell *matCellDef="let row"></td>
+      <td mat-cell *matCellDef="let row">{{ row.number }}</td>
     </ng-container>
     <ng-container matColumnDef="counterparty">
       <th mat-header-cell *matHeaderCellDef>Контрагент</th>
-      <td mat-cell *matCellDef="let row"></td>
+      <td mat-cell *matCellDef="let row">{{ row.counterparty }}</td>
     </ng-container>
     <ng-container matColumnDef="amount">
       <th mat-header-cell *matHeaderCellDef>Сума</th>
-      <td mat-cell *matCellDef="let row"></td>
+      <td mat-cell *matCellDef="let row">{{ row.amount | money }} {{ row.currency }}</td>
     </ng-container>
     <ng-container matColumnDef="status">
       <th mat-header-cell *matHeaderCellDef>Статус</th>
-      <td mat-cell *matCellDef="let row"></td>
+      <td mat-cell *matCellDef="let row">{{ row.status | statusLabel }}</td>
     </ng-container>
 
     <tr mat-header-row *matHeaderRowDef="columns"></tr>
-    <tr mat-row *matRowDef="let row; columns: columns"></tr>
+    <tr
+      mat-row
+      *matRowDef="let row; columns: columns"
+      class="row"
+      [class.selected]="row.id === selectedId()"
+      tabindex="0"
+      (click)="open.emit(row.id)"
+      (keydown.enter)="open.emit(row.id)"
+    ></tr>
   </table>
 </div>
 
-<mat-paginator [length]="0" [pageSize]="20" [hidePageSize]="true" />
+<mat-paginator
+  [length]="total()"
+  [pageIndex]="pageIndex()"
+  [pageSize]="pageSize()"
+  [hidePageSize]="true"
+/>

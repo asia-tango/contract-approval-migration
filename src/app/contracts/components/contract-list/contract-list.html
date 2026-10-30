@@ -1,2 +1,9 @@
 <app-contract-filters />
-<app-contract-table />
+<app-contract-table
+  [items]="listStore.items()"
+  [total]="listStore.total()"
+  [pageIndex]="listStore.pageIndex()"
+  [pageSize]="pageSize"
+  [selectedId]="cardStore.selectedId()"
+  (open)="cardStore.open($event)"
+/>
