@@ -10,7 +10,7 @@ html {
   @include mat.theme(
     (
       color: (
-        primary: mat.$cyan-palette,
+        primary: mat.$blue-palette,
         tertiary: mat.$orange-palette,
       ),
       typography: Roboto,
@@ -35,5 +35,13 @@ body {
   // Reset the user agent margin.
   margin: 0;
   height: 100%;
+}
+
+// «Успіх» (success-банер, мітка APPROVED) — кольори alert-success з Bootstrap 3 легасі:
+// у Material-теми системного кольору успіху немає.
+:root {
+  --app-success-container: #dff0d8;
+  --app-on-success-container: #3c763d;
+  --app-success-border: #3c763d;
 }
 /* You can add global styles to this file, and also import other style files */

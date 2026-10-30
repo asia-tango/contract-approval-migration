@@ -1,7 +1,7 @@
 <mat-form-field class="status">
   <mat-label>Статус</mat-label>
   <mat-select [value]="status()" (selectionChange)="statusChange.emit($event.value)">
-    <mat-option value="">Усі</mat-option>
+    <mat-option value="">Усі статуси</mat-option>
     @for (s of statuses; track s) {
       <mat-option [value]="s">{{ s | statusLabel }}</mat-option>
     }

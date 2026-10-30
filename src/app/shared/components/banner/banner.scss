@@ -16,10 +16,11 @@
   color: var(--mat-sys-on-secondary-container);
 }
 
+// Зелений, як alert-success легасі (змінні — у styles.scss).
 :host(.banner-success) {
-  border-color: var(--mat-sys-primary);
-  background: var(--mat-sys-primary-container);
-  color: var(--mat-sys-on-primary-container);
+  border-color: var(--app-success-border);
+  background: var(--app-success-container);
+  color: var(--app-on-success-container);
 }
 
 :host(.banner-warn) {

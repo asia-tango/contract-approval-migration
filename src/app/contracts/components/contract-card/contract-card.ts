@@ -15,7 +15,7 @@ import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { businessToday, parseApiDate, toApiDate } from '../../../shared/helpers/dates';
 import { COMMITTEE_LIMIT_UAH } from '../../committee-config';
 import { createContractForm } from '../../forms/contract-form';
-import { calculate } from '../../helpers/calc';
+import { calculate, needsRate } from '../../helpers/calc';
 import { equivalentHint } from '../../helpers/equivalent-hint';
 import { CARD_MESSAGES } from '../../messages';
 import { StatusLabelPipe } from '../../pipes/status-label-pipe';
@@ -69,8 +69,7 @@ export class ContractCard {
     const rates = this.store.ratesState();
     return equivalentHint(this.calc(), rates.status === 'ok' ? rates.date : null, COMMITTEE_LIMIT_UAH);
   });
-  /** Курс потрібен лише для валюти, відмінної від UAH. */
-  protected readonly rateNeeded = computed(() => this.value().currency !== 'UAH');
+  protected readonly rateNeeded = computed(() => needsRate(this.value().currency));
   protected readonly ratesLoading = computed(
     () => this.rateNeeded() && this.store.ratesState().status === 'loading',
   );

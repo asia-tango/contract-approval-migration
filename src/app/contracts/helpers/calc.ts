@@ -10,9 +10,14 @@ export function parseAmount(raw: string): number | null {
   return raw.trim() !== '' && Number.isFinite(value) ? value : null;
 }
 
+/** Чи потрібен курс НБУ: для UAH курс завжди 1, тож завантаження й помилка курсу на неї не впливають. */
+export function needsRate(currency: Currency): boolean {
+  return currency !== 'UAH';
+}
+
 /** Курс валюти; для UAH завжди 1, для інших — null, поки курсів немає. */
 export function rateFor(currency: Currency, rates: Rates | null): number | null {
-  return currency === 'UAH' ? 1 : (rates?.[currency] ?? null);
+  return needsRate(currency) ? (rates?.[currency] ?? null) : 1;
 }
 
 /** ПДВ, що міститься в сумі з ПДВ (20%): сума / 6. */
