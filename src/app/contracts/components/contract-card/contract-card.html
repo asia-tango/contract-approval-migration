@@ -1,0 +1,51 @@
+<h2>Договір № —</h2>
+
+<form class="card-form">
+  <mat-form-field>
+    <mat-label>Контрагент</mat-label>
+    <input matInput />
+  </mat-form-field>
+
+  <div class="row">
+    <mat-form-field class="amount">
+      <mat-label>Сума (з ПДВ)</mat-label>
+      <input matInput type="text" inputmode="decimal" />
+    </mat-form-field>
+    <mat-form-field class="currency">
+      <mat-label>Валюта</mat-label>
+      <mat-select value="UAH">
+        <mat-option value="UAH">UAH</mat-option>
+        <mat-option value="USD">USD</mat-option>
+        <mat-option value="EUR">EUR</mat-option>
+      </mat-select>
+    </mat-form-field>
+  </div>
+
+  <mat-checkbox>Платник ПДВ</mat-checkbox>
+
+  <app-contract-calc />
+
+  <div class="row">
+    <mat-form-field>
+      <mat-label>Дата підписання</mat-label>
+      <input matInput readonly />
+    </mat-form-field>
+    <mat-form-field>
+      <mat-label>Діє з</mat-label>
+      <input matInput readonly />
+    </mat-form-field>
+    <mat-form-field>
+      <mat-label>Діє по</mat-label>
+      <input matInput readonly />
+    </mat-form-field>
+  </div>
+
+  <mat-form-field>
+    <mat-label>Коментар</mat-label>
+    <textarea matInput rows="3"></textarea>
+  </mat-form-field>
+
+  <div class="actions">
+    <button mat-flat-button type="button">Надіслати на погодження</button>
+  </div>
+</form>

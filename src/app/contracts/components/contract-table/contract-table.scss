@@ -1,0 +1,16 @@
+:host {
+  display: block;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  min-width: 480px;
+}
+
+.mat-column-amount {
+  text-align: right;
+}

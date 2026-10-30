@@ -1,0 +1,35 @@
+:host {
+  display: block;
+}
+
+.card-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: flex;
+  gap: 16px;
+
+  > * {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  > .amount {
+    flex-grow: 2;
+  }
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 8px;
+}
+
+@media (max-width: 900px) {
+  .row {
+    flex-direction: column;
+    gap: 0;
+  }
+}

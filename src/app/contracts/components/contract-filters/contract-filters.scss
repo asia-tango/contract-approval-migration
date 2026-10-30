@@ -1,0 +1,13 @@
+:host {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.status {
+  flex: 1 1 160px;
+}
+
+.search {
+  flex: 2 1 220px;
+}
