@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { ApprovalCreated, ApprovalPayload } from '../models';
+import { ApprovalCreated, ApprovalPayload, ApprovalRequest } from '../models';
 
 @Injectable({ providedIn: 'root' })
 export class ApprovalApi {
@@ -12,5 +12,9 @@ export class ApprovalApi {
       requestId,
       ...payload,
     });
+  }
+
+  get(id: number): Observable<ApprovalRequest> {
+    return this.http.get<ApprovalRequest>(`/api/approval-requests/${id}`);
   }
 }

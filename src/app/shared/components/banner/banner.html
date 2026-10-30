@@ -1,4 +1,14 @@
-<span class="text">{{ text() }}</span>
+@if (spinner()) {
+  <mat-progress-spinner mode="indeterminate" diameter="18" aria-hidden="true" />
+}
+<span class="text">
+  {{ text() }}
+  @if (hint(); as hintText) {
+    <button mat-icon-button type="button" class="hint" [matTooltip]="hintText" aria-label="Пояснення">
+      <mat-icon fontSet="material-symbols-outlined">info</mat-icon>
+    </button>
+  }
+</span>
 @if (actionLabel(); as label) {
   <button mat-button type="button" (click)="action.emit()">{{ label }}</button>
 }

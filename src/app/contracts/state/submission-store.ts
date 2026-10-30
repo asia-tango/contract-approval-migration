@@ -8,8 +8,8 @@ import { SubmitError, submitErrorOf } from '../helpers/api-error';
 import { toApprovalPayload } from '../helpers/contract-mapper';
 import { SUBMIT_TIMEOUT_MS } from '../helpers/submit-policy';
 import { errorsWithoutField } from '../helpers/validation';
-import { CARD_MESSAGES, SUBMIT_MESSAGES } from '../messages';
-import { ApprovalPayload, ContractFormValue, FieldError, ServerValidation } from '../models';
+import { APPROVAL_MESSAGES, CARD_MESSAGES, SUBMIT_MESSAGES } from '../messages';
+import { ApprovalPayload, ApprovalRequest, ContractFormValue, FieldError, ServerValidation } from '../models';
 import { ContractCardStore } from './contract-card-store';
 import { ContractListStore } from './contract-list-store';
 
@@ -41,7 +41,15 @@ export interface SubmitBanner {
   retry: boolean;
 }
 
-/** Що показати в картці: поля, кнопку, банер над кнопкою. */
+/** Статус погодження під кнопкою: «Очікує рішення» — зі спінером і поясненням в ⓘ. */
+export interface ApprovalBanner {
+  type: BannerType;
+  text: string;
+  spinner: boolean;
+  hint: string | null;
+}
+
+/** Що показати в картці: поля, кнопку, банери над кнопкою і статус погодження під нею. */
 export interface CardView {
   editable: boolean;
   /** Кнопка видима лише для DRAFT / REJECTED. */
@@ -50,6 +58,9 @@ export interface CardView {
   canSubmit: boolean;
   sending: boolean;
   banner: SubmitBanner | null;
+  /** Причина відмови — над кнопкою: форма знову редагована, договір можна виправити й надіслати. */
+  rejection: SubmitBanner | null;
+  approval: ApprovalBanner | null;
 }
 
 const IDLE: SubmissionState = { status: 'idle' };
@@ -74,6 +85,23 @@ function bannerFor(state: SubmissionState): SubmitBanner | null {
       return rest.length ? banner('error', rest.map((e) => e.message).join('. ')) : null;
     }
   }
+}
+
+function approvalBannerFor(approval: ApprovalRequest | null): ApprovalBanner | null {
+  switch (approval?.status) {
+    case 'PENDING':
+      return { type: 'info', text: APPROVAL_MESSAGES.pending, spinner: true, hint: APPROVAL_MESSAGES.pendingHint };
+    case 'APPROVED':
+      return { type: 'success', text: APPROVAL_MESSAGES.approved, spinner: false, hint: null };
+    default:
+      return null;
+  }
+}
+
+function rejectionBannerFor(approval: ApprovalRequest | null): SubmitBanner | null {
+  return approval?.status === 'REJECTED' && approval.reason
+    ? { type: 'error', text: APPROVAL_MESSAGES.rejected(approval.reason), retry: false }
+    : null;
 }
 
 @Injectable()
@@ -108,6 +136,8 @@ export class SubmissionStore {
       canSubmit: editable && !blocked,
       sending: state.status === 'sending',
       banner: bannerFor(state),
+      rejection: rejectionBannerFor(this.cardStore.approval()),
+      approval: approvalBannerFor(this.cardStore.approval()),
     };
   });
 

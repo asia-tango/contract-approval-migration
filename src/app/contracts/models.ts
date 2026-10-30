@@ -89,3 +89,10 @@ export interface ApprovalCreated {
   approvalRequestId: number;
   status: 'PENDING';
 }
+
+/** Заявка на погодження (`GET /api/approval-requests/{id}`). `reason` — лише для REJECTED. */
+export interface ApprovalRequest {
+  id: number;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  reason: string | null;
+}

@@ -7,6 +7,11 @@ export function isRatesDateError(error: unknown): boolean {
   return error instanceof HttpErrorResponse && (error.status === 404 || error.status === 400);
 }
 
+/** Опитування: 404 — сервер ще не застосував заявку, тобто вона очікує рішення. */
+export function isNotFound(error: unknown): boolean {
+  return error instanceof HttpErrorResponse && error.status === 404;
+}
+
 /**
  * Помилка надсилання заявки. `unknown` — доля заявки невідома (таймаут, 0, 503);
  * `server` — заявку не створено (500 та інші відповіді).

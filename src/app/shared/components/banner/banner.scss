@@ -1,3 +1,5 @@
+@use '@angular/material' as mat;
+
 :host {
   display: flex;
   flex-wrap: wrap;
@@ -39,6 +41,19 @@
   overflow-wrap: anywhere;
 }
 
-button {
+button,
+mat-progress-spinner {
   flex: none;
+}
+
+// Компактна ⓘ одразу після тексту, щоб банер не ставав вищим.
+.hint {
+  @include mat.icon-button-overrides(
+    (
+      state-layer-size: 28px,
+      icon-size: 18px,
+    )
+  );
+  padding: 5px;
+  vertical-align: middle;
 }

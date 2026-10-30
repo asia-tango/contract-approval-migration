@@ -78,6 +78,8 @@ export class ContractCard {
     const rates = this.store.ratesState();
     return this.rateNeeded() && rates.status === 'error' && rates.kind === 'unavailable';
   });
+  /** Окремий computed: cardView змінюється й на кожну відповідь опитування, а форму вмикаємо лише при зміні editable. */
+  private readonly editable = computed(() => this.submission.cardView().editable);
   /** Надсилання недоступне, поки курс вантажиться або недоступний (не виправити у формі). */
   protected readonly ratesBlocked = computed(() => this.ratesLoading() || this.ratesUnavailable());
 
@@ -99,7 +101,7 @@ export class ContractCard {
       });
     });
     effect(() => {
-      const editable = this.submission.cardView().editable;
+      const editable = this.editable();
       untracked(() => (editable ? this.form.enable() : this.form.disable()));
     });
 
