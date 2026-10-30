@@ -30,7 +30,7 @@ import { ApprovalRequest, Contract, ContractFormValue, ContractStatus, Me, Rates
 import { ContractListStore } from './contract-list-store';
 
 const EDITOR_ROLE = 'CONTRACT_EDITOR';
-const POLL_INTERVAL_MS = 3000;
+const POLL_INTERVAL_MS = 5000;
 
 /** Опитування заявки. `pending` — договір уже чекає рішення (ON_APPROVAL або щойно 201). */
 interface PollStart {

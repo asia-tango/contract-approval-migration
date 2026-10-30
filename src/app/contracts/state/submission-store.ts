@@ -159,7 +159,8 @@ export class SubmissionStore {
       canSubmit: editable && !blocked,
       sending: state.status === 'sending',
       banner: bannerFor(state),
-      rejection: rejectionBannerFor(this.cardStore.approval()),
+      // Під час sending / unknown / failed причина стосується попередньої заявки — не показуємо.
+      rejection: state.status === 'idle' ? rejectionBannerFor(this.cardStore.approval()) : null,
       approval: approvalBannerFor(this.cardStore.approval()),
     };
   });
