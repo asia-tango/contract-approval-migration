@@ -1,16 +1,47 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Subject, switchMap } from 'rxjs';
+import {
+  Subject,
+  catchError,
+  distinctUntilChanged,
+  map,
+  merge,
+  of,
+  startWith,
+  switchMap,
+  tap,
+} from 'rxjs';
+import { ExchangeRateService } from '../../../mock-backend';
 import { ContractsApi } from '../data-access/contracts-api';
-import { Contract, Me } from '../models';
+import { isRatesDateError } from '../helpers/api-error';
+import { toFormValue } from '../helpers/contract-mapper';
+import { Contract, ContractFormValue, Me, Rates } from '../models';
 
 const EDITOR_ROLE = 'CONTRACT_EDITOR';
+
+/** Курси для пари (договір, дата підписання); `date: null` — дати немає, запиту немає. */
+interface RatesKey {
+  contractId: number;
+  date: string | null;
+}
+
+/** `date` — дата підписання, для якої цей стан. `error.kind: 'date'` — 404 / 400, `unavailable` — решта (503). */
+export type RatesState =
+  | { status: 'idle' }
+  | { status: 'loading'; date: string }
+  | { status: 'ok'; date: string; rates: Rates }
+  | { status: 'error'; date: string; kind: 'date' | 'unavailable' };
 
 @Injectable()
 export class ContractCardStore {
   private readonly api = inject(ContractsApi);
+  private readonly rateService = inject(ExchangeRateService);
 
   private readonly open$ = new Subject<number>();
+  private readonly meRetry$ = new Subject<void>();
+  private readonly ratesKey$ = new Subject<RatesKey>();
+  private readonly ratesRetry$ = new Subject<RatesKey>();
+
   private readonly me = signal<Me | null>(null);
   private readonly selected = signal<number | null>(null);
   private readonly loaded = signal<Contract | null>(null);
@@ -21,30 +52,113 @@ export class ContractCardStore {
     const contract = this.loaded();
     return contract?.id === this.selected() ? contract : null;
   });
+  readonly loading = signal(false);
+  readonly loadError = signal(false);
+  readonly meError = signal(false);
+  /** Дані для заповнення форми: змінюються, лише коли завантажено договір. */
+  readonly formData = signal<ContractFormValue | null>(null);
+
   /** Поки /api/me не завантажено — лише читання. */
   readonly canEdit = computed(() => this.me()?.roles.includes(EDITOR_ROLE) ?? false);
+  readonly meLoaded = computed(() => this.me() !== null);
   readonly statusEditable = computed(() => {
     const status = this.contract()?.status;
     return status === 'DRAFT' || status === 'REJECTED';
   });
+  readonly editable = computed(() => this.canEdit() && this.statusEditable());
+
+  readonly ratesState = signal<RatesState>({ status: 'idle' });
+  /** Усі курси на дату підписання або null (вантажиться / помилка / немає дати). */
+  readonly rates = computed(() => {
+    const state = this.ratesState();
+    return state.status === 'ok' ? state.rates : null;
+  });
 
   constructor() {
-    this.api
-      .me()
-      .pipe(takeUntilDestroyed())
-      .subscribe((me) => this.me.set(me));
+    this.meRetry$
+      .pipe(
+        startWith(undefined),
+        switchMap(() => this.api.me().pipe(catchError(() => of(null)))),
+        takeUntilDestroyed(),
+      )
+      .subscribe((me) => {
+        this.meError.set(me === null);
+        if (me) this.me.set(me);
+      });
 
     this.open$
       .pipe(
-        switchMap((id) => this.api.get(id)),
+        tap(() => {
+          this.loading.set(true);
+          this.loadError.set(false);
+        }),
+        switchMap((id) => this.api.get(id).pipe(catchError(() => of(null)))),
         takeUntilDestroyed(),
       )
-      .subscribe((contract) => this.loaded.set(contract));
+      .subscribe((contract) => {
+        this.loading.set(false);
+        if (!contract) {
+          this.loadError.set(true);
+          return;
+        }
+        this.loaded.set(contract);
+        this.formData.set(toFormValue(contract));
+        this.ratesKey$.next({ contractId: contract.id, date: contract.signDate });
+      });
+
+    merge(
+      this.ratesKey$.pipe(
+        distinctUntilChanged((a, b) => a.contractId === b.contractId && a.date === b.date),
+      ),
+      this.ratesRetry$,
+    )
+      .pipe(
+        switchMap(({ date }) =>
+          date === null
+            ? of<RatesState>({ status: 'idle' })
+            : this.rateService.getRates(date).pipe(
+                map((rates): RatesState => ({ status: 'ok', date, rates })),
+                catchError((error) =>
+                  of<RatesState>({ status: 'error', date, kind: isRatesDateError(error) ? 'date' : 'unavailable' }),
+                ),
+                startWith<RatesState>({ status: 'loading', date }),
+              ),
+        ),
+        takeUntilDestroyed(),
+      )
+      .subscribe((state) => this.ratesState.set(state));
   }
 
   open(id: number): void {
     if (id === this.selected()) return;
     this.selected.set(id);
+    // Курси попереднього договору більше не потрібні: запит скасовується, стан — порожній.
+    this.ratesKey$.next({ contractId: id, date: null });
     this.open$.next(id);
+  }
+
+  /** «Повторити» після помилки завантаження — як повторний вибір договору. */
+  retryLoad(): void {
+    const id = this.selected();
+    if (id !== null) this.open$.next(id);
+  }
+
+  retryMe(): void {
+    this.meRetry$.next();
+  }
+
+  /** Дата підписання з форми (`yyyy-MM-dd` або null). Новий запит — лише якщо змінилась пара (договір, дата). */
+  setSignDate(date: string | null): void {
+    const contract = this.contract();
+    if (contract) this.ratesKey$.next({ contractId: contract.id, date });
+  }
+
+  /** Повторити запит курсу для поточної пари — в обхід відсіювання дублів. */
+  retryRates(): void {
+    const contract = this.contract();
+    const state = this.ratesState();
+    if (contract && state.status === 'error') {
+      this.ratesRetry$.next({ contractId: contract.id, date: state.date });
+    }
   }
 }

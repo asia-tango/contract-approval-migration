@@ -1,66 +1,123 @@
 @if (store.selectedId() === null) {
   <app-empty-state text="Оберіть договір зі списку" />
-} @else if (store.contract(); as c) {
-  <h2>
-    Договір № {{ c.number }} <span class="status">{{ c.status | statusLabel }}</span>
-  </h2>
-
-  <form class="card-form">
-    <mat-form-field>
-      <mat-label>Контрагент</mat-label>
-      <input matInput [value]="c.counterparty" disabled />
-    </mat-form-field>
-
-    <div class="row">
-      <mat-form-field class="amount">
-        <mat-label>Сума (з ПДВ)</mat-label>
-        <input matInput type="text" inputmode="decimal" [value]="c.amount" disabled />
-      </mat-form-field>
-      <mat-form-field class="currency">
-        <mat-label>Валюта</mat-label>
-        <mat-select [value]="c.currency" disabled>
-          <mat-option value="UAH">UAH</mat-option>
-          <mat-option value="USD">USD</mat-option>
-          <mat-option value="EUR">EUR</mat-option>
-        </mat-select>
-      </mat-form-field>
-    </div>
-
-    <mat-checkbox [checked]="c.vatPayer" disabled>Платник ПДВ</mat-checkbox>
-
-    <app-contract-calc />
-
-    <div class="row">
-      <mat-form-field>
-        <mat-label>Дата підписання</mat-label>
-        <input matInput [matDatepicker]="signPicker" [value]="dates()?.sign" readonly disabled />
-        <mat-datepicker #signPicker />
-      </mat-form-field>
-      <mat-form-field>
-        <mat-label>Діє з</mat-label>
-        <input matInput [matDatepicker]="startPicker" [value]="dates()?.start" readonly disabled />
-        <mat-datepicker #startPicker />
-      </mat-form-field>
-      <mat-form-field>
-        <mat-label>Діє по</mat-label>
-        <input matInput [matDatepicker]="endPicker" [value]="dates()?.end" readonly disabled />
-        <mat-datepicker #endPicker />
-      </mat-form-field>
-    </div>
-
-    <mat-form-field>
-      <mat-label>Коментар</mat-label>
-      <textarea matInput rows="3" [value]="c.comment ?? ''" disabled></textarea>
-    </mat-form-field>
-
-    @if (store.statusEditable()) {
-      <div class="actions">
-        <button mat-flat-button type="button" [disabled]="!store.canEdit()">
-          Надіслати на погодження
-        </button>
-      </div>
-    }
-  </form>
 } @else {
-  <mat-progress-bar mode="indeterminate" />
+  <div class="progress">
+    @if (store.loading()) {
+      <mat-progress-bar mode="indeterminate" />
+    }
+  </div>
+
+  @if (store.contract(); as c) {
+    <h2>
+      Договір № {{ c.number }}
+      <span class="status" [attr.data-status]="c.status">{{ c.status | statusLabel }}</span>
+    </h2>
+
+    <form class="card-form" [formGroup]="form">
+      <mat-form-field>
+        <mat-label>Контрагент</mat-label>
+        <input matInput formControlName="counterparty" />
+        <mat-error>{{ form.controls.counterparty.errors?.['message'] }}</mat-error>
+      </mat-form-field>
+
+      <div class="row">
+        <mat-form-field class="amount">
+          <mat-label>Сума (з ПДВ)</mat-label>
+          <input matInput type="text" inputmode="decimal" formControlName="amount" />
+          <mat-error>{{ form.controls.amount.errors?.['message'] }}</mat-error>
+        </mat-form-field>
+        <mat-form-field class="currency">
+          <mat-label>Валюта</mat-label>
+          <mat-select formControlName="currency">
+            <mat-option value="UAH">UAH</mat-option>
+            <mat-option value="USD">USD</mat-option>
+            <mat-option value="EUR">EUR</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <mat-checkbox formControlName="vatPayer">Платник ПДВ</mat-checkbox>
+
+      <app-contract-calc [calc]="calc()" [hint]="hint()" [ratesLoading]="ratesLoading()" />
+
+      @if (ratesUnavailable()) {
+        <app-banner
+          class="rates-banner"
+          type="error"
+          [text]="messages.ratesUnavailable"
+          actionLabel="Повторити"
+          (action)="store.retryRates()"
+        />
+      }
+
+      <div class="row">
+        <mat-form-field>
+          <mat-label>Дата підписання</mat-label>
+          <input matInput [matDatepicker]="signPicker" [max]="today" formControlName="signDate" readonly />
+          <mat-datepicker-toggle matIconSuffix [for]="signPicker" />
+          <mat-datepicker #signPicker />
+          <mat-error>{{ form.controls.signDate.errors?.['message'] }}</mat-error>
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Діє з</mat-label>
+          <input matInput [matDatepicker]="startPicker" formControlName="startDate" readonly />
+          <mat-datepicker-toggle matIconSuffix [for]="startPicker" />
+          <mat-datepicker #startPicker />
+          <mat-error>{{ form.controls.startDate.errors?.['message'] }}</mat-error>
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Діє по</mat-label>
+          <input
+            matInput
+            [matDatepicker]="endPicker"
+            [min]="value().startDate"
+            formControlName="endDate"
+            readonly
+          />
+          <mat-datepicker-toggle matIconSuffix [for]="endPicker" />
+          <mat-datepicker #endPicker />
+          <mat-error>{{ form.controls.endDate.errors?.['message'] }}</mat-error>
+        </mat-form-field>
+      </div>
+
+      <mat-form-field>
+        <mat-label>Коментар</mat-label>
+        <textarea matInput rows="3" formControlName="comment"></textarea>
+        <mat-error>{{ form.controls.comment.errors?.['message'] }}</mat-error>
+      </mat-form-field>
+
+      @if (store.statusEditable()) {
+        <div class="banners">
+          @if (store.meError()) {
+            <app-banner
+              type="error"
+              [text]="messages.meError"
+              actionLabel="Повторити"
+              (action)="store.retryMe()"
+            />
+          } @else if (store.meLoaded() && !store.canEdit()) {
+            <app-banner type="info" [text]="messages.noRights" />
+          }
+        </div>
+
+        <div class="actions">
+          <button
+            mat-flat-button
+            type="button"
+            [disabled]="!store.editable() || ratesBlocked()"
+            (click)="submit()"
+          >
+            Надіслати на погодження
+          </button>
+        </div>
+      }
+    </form>
+  } @else if (store.loadError()) {
+    <app-banner
+      type="error"
+      [text]="messages.loadError"
+      actionLabel="Повторити"
+      (action)="store.retryLoad()"
+    />
+  }
 }

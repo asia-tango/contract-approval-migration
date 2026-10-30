@@ -2,6 +2,42 @@
   display: block;
 }
 
+// Місце під індикатор зарезервоване, щоб картка не стрибала.
+.progress {
+  height: 4px;
+}
+
+h2 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+// Мітка статусу — кольорова за статусом.
+.status {
+  padding: 2px 10px;
+  border-radius: 8px;
+  font: var(--mat-sys-label-large);
+  background: var(--mat-sys-surface-container-highest);
+  color: var(--mat-sys-on-surface);
+
+  &[data-status='ON_APPROVAL'] {
+    background: var(--mat-sys-secondary-container);
+    color: var(--mat-sys-on-secondary-container);
+  }
+
+  &[data-status='APPROVED'] {
+    background: var(--mat-sys-primary-container);
+    color: var(--mat-sys-on-primary-container);
+  }
+
+  &[data-status='REJECTED'] {
+    background: var(--mat-sys-error-container);
+    color: var(--mat-sys-on-error-container);
+  }
+}
+
 .card-form {
   display: flex;
   flex-direction: column;
@@ -19,6 +55,17 @@
   > .amount {
     flex-grow: 2;
   }
+}
+
+.rates-banner {
+  margin-bottom: 16px;
+}
+
+.banners {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .actions {

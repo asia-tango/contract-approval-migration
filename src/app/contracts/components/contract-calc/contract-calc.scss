@@ -1,4 +1,28 @@
+@use '@angular/material' as mat;
+
 :host {
   display: block;
   margin: 8px 0 16px;
+}
+
+.line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+}
+
+// Компактна ⓘ, щоб рядок не ставав вищим.
+.hint {
+  @include mat.icon-button-overrides(
+    (
+      state-layer-size: 32px,
+      icon-size: 20px,
+    )
+  );
+  padding: 6px;
+}
+
+app-banner {
+  margin-top: 8px;
 }

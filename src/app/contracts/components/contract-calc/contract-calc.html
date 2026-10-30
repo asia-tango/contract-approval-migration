@@ -1,2 +1,29 @@
-<div>ПДВ: <b>—</b></div>
-<div>Еквівалент, грн: <b>—</b></div>
+@let c = calc();
+<div class="line">
+  ПДВ:
+  <b>
+    @if (c.amount === null) {
+      —
+    } @else if (c.vat === null) {
+      без ПДВ
+    } @else {
+      {{ c.vat | money }}
+    }
+  </b>
+</div>
+<div class="line">
+  Еквівалент, грн:
+  @if (ratesLoading()) {
+    <mat-progress-spinner mode="indeterminate" diameter="16" aria-label="Завантаження курсу" />
+  } @else {
+    <b>{{ c.amountUah === null ? '—' : (c.amountUah | money) }}</b>
+    @if (hint(); as text) {
+      <button mat-icon-button type="button" class="hint" [matTooltip]="text" aria-label="Як розраховано">
+        <mat-icon fontSet="material-symbols-outlined">info</mat-icon>
+      </button>
+    }
+  }
+</div>
+@if (c.route === 'COMMITTEE') {
+  <app-banner type="warn" [text]="messages.committee" />
+}

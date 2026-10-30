@@ -1,5 +1,9 @@
 export type ContractStatus = 'DRAFT' | 'ON_APPROVAL' | 'APPROVED' | 'REJECTED';
 export type Currency = 'UAH' | 'USD' | 'EUR';
+export type Route = 'STANDARD' | 'COMMITTEE';
+
+/** Курси НБУ на дату (`GET /api/rates`). */
+export type Rates = Record<Currency, number>;
 
 export interface Me {
   login: string;
@@ -28,10 +32,8 @@ export interface ListFilters {
   page: number;
 }
 
-/** Договір (`GET /api/contracts/{id}`). Дати — рядки `yyyy-MM-dd`. */
-export interface Contract {
-  id: number;
-  number: string;
+/** Редаговані дані договору (ті самі поля, що в `data` заявки). Дати — рядки `yyyy-MM-dd`. */
+export interface ContractData {
   counterparty: string;
   amount: number;
   currency: Currency;
@@ -40,7 +42,25 @@ export interface Contract {
   startDate: string;
   endDate: string;
   comment: string | null;
+}
+
+/** Договір (`GET /api/contracts/{id}`). */
+export interface Contract extends ContractData {
+  id: number;
+  number: string;
   status: ContractStatus;
   version: number;
   lastApprovalRequestId: number | null;
+}
+
+/** Значення форми картки: сума — текстом, як введено; дати — з календаря. */
+export interface ContractFormValue {
+  counterparty: string;
+  amount: string;
+  currency: Currency;
+  vatPayer: boolean;
+  signDate: Date | null;
+  startDate: Date | null;
+  endDate: Date | null;
+  comment: string;
 }
