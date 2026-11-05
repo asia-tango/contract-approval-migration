@@ -17,6 +17,7 @@ import { COMMITTEE_LIMIT_UAH } from '../../committee-config';
 import { createContractForm } from '../../forms/contract-form';
 import { calculate, needsRate } from '../../helpers/calc';
 import { equivalentHint } from '../../helpers/equivalent-hint';
+import { COMMITTEE_COMMENT_MIN_LENGTH } from '../../helpers/validation';
 import { CARD_MESSAGES } from '../../messages';
 import { StatusLabelPipe } from '../../pipes/status-label-pipe';
 import { ContractCardStore } from '../../state/contract-card-store';
@@ -82,6 +83,11 @@ export class ContractCard {
   /** Лише для комітету. У режимі читання — лише зі значенням: бекенд номер не повертає, порожнє поле нічого не означає. */
   protected readonly showProtocolNumber = computed(
     () => this.calc().route === 'COMMITTEE' && (this.editable() || !!this.value().protocolNumber),
+  );
+  protected readonly commentMinLength = COMMITTEE_COMMENT_MIN_LENGTH;
+  /** Лічильник коментаря: лише для комітету й редагованої форми; рахується, як у `commentError` (після trim). */
+  protected readonly commentLength = computed(() =>
+    this.editable() && this.calc().route === 'COMMITTEE' ? this.value().comment.trim().length : null,
   );
   /** Надсилання недоступне, поки курс вантажиться або недоступний (не виправити у формі). */
   protected readonly ratesBlocked = computed(() => this.ratesLoading() || this.ratesUnavailable());

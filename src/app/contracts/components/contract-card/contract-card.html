@@ -100,6 +100,10 @@
       <mat-form-field>
         <mat-label>Коментар</mat-label>
         <textarea matInput rows="3" formControlName="comment"></textarea>
+        @let commentCount = commentLength();
+        @if (commentCount !== null) {
+          <mat-hint align="end">{{ commentCount }} / {{ commentMinLength }}</mat-hint>
+        }
         <mat-error>{{ form.controls.comment.errors?.['message'] }}</mat-error>
       </mat-form-field>
 
