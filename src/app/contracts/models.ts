@@ -42,6 +42,8 @@ export interface ContractData {
   startDate: string;
   endDate: string;
   comment: string | null;
+  /** Номер протоколу комітету: лише для маршруту COMMITTEE. GET його не повертає. */
+  protocolNumber?: string;
 }
 
 /** Договір (`GET /api/contracts/{id}`). */
@@ -63,6 +65,7 @@ export interface ContractFormValue {
   startDate: Date | null;
   endDate: Date | null;
   comment: string;
+  protocolNumber: string;
 }
 
 /** Помилка серверної валідації (422). `field` — поле `data` або `route`. */

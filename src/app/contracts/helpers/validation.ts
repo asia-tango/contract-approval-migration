@@ -11,10 +11,13 @@ export const VALIDATION_MESSAGES = {
   signDateNoRates: 'Немає курсу НБУ на цю дату',
   endBeforeStart: 'Дата закінчення раніше дати початку',
   commentForCommittee: 'Для комітету потрібне обґрунтування (від 20 символів)',
+  protocolRequired: 'Вкажіть номер протоколу',
+  protocolFormat: 'Формат номера протоколу: ПЗ-РРРР/NNN, наприклад ПЗ-2026/014',
 };
 
 export const COMMITTEE_COMMENT_MIN_LENGTH = 20;
 const AMOUNT_PATTERN = /^\d+([.,]\d{1,2})?$/;
+const PROTOCOL_NUMBER_PATTERN = /^ПЗ-\d{4}\/\d{3}$/;
 
 export function counterpartyError(counterparty: string): string | null {
   return counterparty.trim() ? null : VALIDATION_MESSAGES.counterparty;
@@ -52,6 +55,14 @@ export function commentError(comment: string, route: Route | null): string | nul
     : null;
 }
 
+/** Обов'язковий лише для комітету. Маршрут невідомий (немає суми або курсу) — правило не застосовується. */
+export function protocolNumberError(protocolNumber: string, route: Route | null): string | null {
+  if (route !== 'COMMITTEE') return null;
+  const value = protocolNumber.trim();
+  if (!value) return VALIDATION_MESSAGES.protocolRequired;
+  return PROTOCOL_NUMBER_PATTERN.test(value) ? null : VALIDATION_MESSAGES.protocolFormat;
+}
+
 /** Поля форми, біля яких показуємо помилки сервера (422). Решту (`route`, `vatPayer`) — банером над кнопкою. */
 export const FIELDS_WITH_SERVER_ERROR = [
   'counterparty',
@@ -61,6 +72,7 @@ export const FIELDS_WITH_SERVER_ERROR = [
   'startDate',
   'endDate',
   'comment',
+  'protocolNumber',
 ] as const satisfies readonly (keyof ContractFormValue)[];
 
 /** Помилка сервера для поля — лише поки значення поля таке саме, як надіслане; змінив поле → помилка зникає. */

@@ -13,6 +13,7 @@ export function toFormValue(data: ContractData): ContractFormValue {
     startDate: parseApiDate(data.startDate),
     endDate: parseApiDate(data.endDate),
     comment: data.comment ?? '',
+    protocolNumber: data.protocolNumber ?? '',
   };
 }
 
@@ -38,6 +39,8 @@ export function toApprovalPayload(
       startDate: toApiDate(startDate),
       endDate: toApiDate(endDate),
       comment: value.comment,
+      // Лише для комітету: значення, що лишилось у прихованому полі, не надсилаємо.
+      ...(route === 'COMMITTEE' ? { protocolNumber: value.protocolNumber.trim() } : {}),
     },
   };
 }

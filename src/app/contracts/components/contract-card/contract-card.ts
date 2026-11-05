@@ -83,7 +83,7 @@ export class ContractCard {
   protected readonly ratesBlocked = computed(() => this.ratesLoading() || this.ratesUnavailable());
 
   constructor() {
-    const { endDate, comment, signDate } = this.form.controls;
+    const { endDate, comment, protocolNumber, signDate } = this.form.controls;
 
     // Синхронізація стор → форма. Кожен effect стежить рівно за одним signal, решта — в untracked.
     effect(() => {
@@ -96,6 +96,7 @@ export class ContractCard {
       this.store.ratesState();
       untracked(() => {
         comment.updateValueAndValidity({ emitEvent: false });
+        protocolNumber.updateValueAndValidity({ emitEvent: false });
         signDate.updateValueAndValidity({ emitEvent: false });
       });
     });
@@ -108,6 +109,7 @@ export class ContractCard {
     this.form.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => {
       endDate.updateValueAndValidity({ emitEvent: false });
       comment.updateValueAndValidity({ emitEvent: false });
+      protocolNumber.updateValueAndValidity({ emitEvent: false });
       const date = signDate.value;
       this.store.setSignDate(date ? toApiDate(date) : null);
     });

@@ -7,6 +7,7 @@ import {
   counterpartyError,
   endDateError,
   FIELDS_WITH_SERVER_ERROR,
+  protocolNumberError,
   requiredDateError,
   serverFieldError,
   signDateError,
@@ -22,6 +23,7 @@ export type ContractForm = FormGroup<{
   startDate: FormControl<Date | null>;
   endDate: FormControl<Date | null>;
   comment: FormControl<string>;
+  protocolNumber: FormControl<string>;
 }>;
 
 /** Помилка поля — `{ message }`: текст показує `mat-error` під полем. */
@@ -47,9 +49,9 @@ function apiDate(date: Date | null | undefined): string | null {
 }
 
 /**
- * Форма картки. Правила — на самих контролах; ті, що залежать від інших полів (`endDate`, `comment`),
- * компонент перезапускає при зміні форми, а `comment` і `signDate` — ще й при зміні курсу.
- * @param rates курси на дату підписання або null (вантажиться / помилка — правило коментаря не застосовується)
+ * Форма картки. Правила — на самих контролах; ті, що залежать від інших полів (`endDate`, `comment`, `protocolNumber`),
+ * компонент перезапускає при зміні форми, а `comment`, `protocolNumber` і `signDate` — ще й при зміні курсу.
+ * @param rates курси на дату підписання або null (вантажиться / помилка — правила комітету не застосовуються)
  * @param noRatesForDate сервер курсів відповів 404 / 400 на дату підписання
  * @param serverValidation помилки 422 останнього надсилання або null. Окремо не перезапускаються: під час
  *   надсилання форма вимкнена, а `enable()` після відповіді перевіряє всі поля заново.
@@ -78,6 +80,12 @@ export function createContractForm(
       nonNullable: true,
       validators: rule<string>((comment, form) =>
         commentError(comment, form ? calculate(form, rates(), limit).route : null),
+      ),
+    }),
+    protocolNumber: new FormControl('', {
+      nonNullable: true,
+      validators: rule<string>((protocolNumber, form) =>
+        protocolNumberError(protocolNumber, form ? calculate(form, rates(), limit).route : null),
       ),
     }),
   });

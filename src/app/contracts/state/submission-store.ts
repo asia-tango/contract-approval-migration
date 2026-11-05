@@ -21,6 +21,7 @@ import { BannerType } from '../../shared/components/banner/banner';
 import { COMMITTEE_LIMIT_UAH } from '../committee-config';
 import { ApprovalApi } from '../data-access/approval-api';
 import { PendingSubmissionStorage } from '../data-access/pending-submission-storage';
+import { ProtocolNumberStorage } from '../data-access/protocol-number-storage';
 import { SubmitError, submitErrorOf } from '../helpers/api-error';
 import { toApprovalPayload, toFormValue } from '../helpers/contract-mapper';
 import { SUBMIT_TIMEOUT_MS } from '../helpers/submit-policy';
@@ -132,6 +133,7 @@ export class SubmissionStore {
   private readonly cardStore = inject(ContractCardStore);
   private readonly listStore = inject(ContractListStore);
   private readonly storage = inject(PendingSubmissionStorage);
+  private readonly protocolStorage = inject(ProtocolNumberStorage);
 
   private readonly submit$ = new Subject<SubmitRequest>();
   private readonly reloadRetry$ = new Subject<number>();
@@ -218,6 +220,9 @@ export class SubmissionStore {
     const attempt = this.storage.read(contract.id);
     if (!attempt) return EMPTY;
     if (contract.status !== 'DRAFT' && contract.status !== 'REJECTED') {
+      // Номер протоколу є лише в записі, який зараз видаляємо. Форму вже заповнено без нього — оновлюємо.
+      this.saveProtocolNumber(attempt, contract.lastApprovalRequestId);
+      this.cardStore.setFormData(this.cardStore.formValueOf(contract));
       this.storage.remove(contract.id);
       return EMPTY;
     }
@@ -237,6 +242,7 @@ export class SubmissionStore {
     }).pipe(timeout(SUBMIT_TIMEOUT_MS));
     return try$.pipe(
       tap((created) => {
+        this.saveProtocolNumber(attempt, created.approvalRequestId);
         this.storage.remove(contractId);
         this.cardStore.setOnApproval(created.approvalRequestId);
         this.listStore.reload();
@@ -245,6 +251,13 @@ export class SubmissionStore {
       catchError((error) => this.failure(submitErrorOf(error), request)),
       startWith<SubmissionState>({ status: 'sending', attempt, recovery }),
     );
+  }
+
+  private saveProtocolNumber({ contractId, payload }: SubmissionAttempt, approvalRequestId: number | null): void {
+    const { protocolNumber } = payload.data;
+    if (protocolNumber && approvalRequestId !== null) {
+      this.protocolStorage.save(contractId, approvalRequestId, protocolNumber);
+    }
   }
 
   /** Доля заявки невідома — запис лишається. Відповідь остаточна — запис видаляємо: далі буде новий requestId. */

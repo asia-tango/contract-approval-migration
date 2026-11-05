@@ -97,4 +97,81 @@ describe('SubmissionStore з MockBackend (chaos: timeout)', () => {
     expect(stats.requests[0].requestId).toBe(saved!.requestId);
     expect(stats.requestIdReusedWithDifferentPayload).toBe(0);
   });
+
+  describe('номер протоколу (#9 із сумою понад ліміт — маршрут COMMITTEE)', () => {
+    const PROTOCOL = 'ПЗ-2026/014';
+    const committeeValue = (card: ContractCardStore) => ({
+      ...card.formData()!,
+      amount: '1000000,01',
+      comment: 'о'.repeat(20),
+      protocolNumber: ` ${PROTOCOL} `,
+    });
+
+    it('таймаут → повтор: той самий payload з номером, одна заявка; після 201 номер повертається при поверненні', async () => {
+      const { card, submission } = createStores();
+      const create = vi.spyOn(TestBed.inject(ApprovalApi), 'create');
+      card.open(CONTRACT_ID);
+      await vi.advanceTimersByTimeAsync(LOAD_MS);
+
+      const value = committeeValue(card);
+      submission.submit(value);
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(submission.state().status).toBe('unknown');
+      submission.submit(value);
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(card.contract()?.status).toBe('ON_APPROVAL');
+
+      const [first, second] = create.mock.calls;
+      expect(first[2].route).toBe('COMMITTEE');
+      expect(first[2].data.protocolNumber).toBe(PROTOCOL);
+      expect(second[1]).toBe(first[1]);
+      expect(second[2]).toEqual(first[2]);
+      const stats = backend.stats();
+      expect(stats.approvalRequestsByContract).toEqual({ [CONTRACT_ID]: 1 });
+      expect(stats.requestIdReusedWithDifferentPayload).toBe(0);
+
+      card.open(CONTRACT_ID + 1);
+      await vi.advanceTimersByTimeAsync(LOAD_MS);
+      expect(card.formData()?.protocolNumber).toBe('');
+      card.open(CONTRACT_ID);
+      await vi.advanceTimersByTimeAsync(LOAD_MS);
+      expect(card.formData()?.protocolNumber).toBe(PROTOCOL);
+    });
+
+    it('таймаут → F5, заявку ще не застосовано: відновлення повертає номер у форму', async () => {
+      const first = createStores();
+      first.card.open(CONTRACT_ID);
+      await vi.advanceTimersByTimeAsync(LOAD_MS);
+      first.submission.submit(committeeValue(first.card));
+      await vi.advanceTimersByTimeAsync(5000);
+
+      TestBed.resetTestingModule();
+      const second = createStores();
+      second.card.open(CONTRACT_ID);
+      await vi.advanceTimersByTimeAsync(LOAD_MS);
+
+      expect(second.card.contract()?.status).toBe('ON_APPROVAL');
+      expect(second.card.formData()?.protocolNumber).toBe(PROTOCOL);
+      expect(backend.stats().approvalRequestsByContract).toEqual({ [CONTRACT_ID]: 1 });
+    });
+
+    it('таймаут → F5, заявку вже застосовано: запис видаляється, номер лишається у формі', async () => {
+      const first = createStores();
+      first.card.open(CONTRACT_ID);
+      await vi.advanceTimersByTimeAsync(LOAD_MS);
+      first.submission.submit(committeeValue(first.card));
+      await vi.advanceTimersByTimeAsync(6000);
+
+      TestBed.resetTestingModule();
+      const second = createStores();
+      const create = vi.spyOn(TestBed.inject(ApprovalApi), 'create');
+      second.card.open(CONTRACT_ID);
+      await vi.advanceTimersByTimeAsync(LOAD_MS);
+
+      expect(create).not.toHaveBeenCalled();
+      expect(TestBed.inject(PendingSubmissionStorage).read(CONTRACT_ID)).toBeNull();
+      expect(second.card.contract()?.status).toBe('ON_APPROVAL');
+      expect(second.card.formData()?.protocolNumber).toBe(PROTOCOL);
+    });
+  });
 });
