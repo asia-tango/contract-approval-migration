@@ -41,11 +41,13 @@
 
       <app-contract-calc [calc]="calc()" [hint]="hint()" [ratesLoading]="ratesLoading()" />
 
-      @if (calc().route === 'COMMITTEE') {
-        <mat-form-field>
+      @if (showProtocolNumber()) {
+        <mat-form-field class="protocol-number" subscriptSizing="dynamic">
           <mat-label>Номер протоколу</mat-label>
           <input matInput formControlName="protocolNumber" />
-          <mat-hint>Формат: ПЗ-2026/014</mat-hint>
+          @if (editable()) {
+            <mat-hint>Формат: ПЗ-2026/014</mat-hint>
+          }
           <mat-error>{{ form.controls.protocolNumber.errors?.['message'] }}</mat-error>
         </mat-form-field>
       }

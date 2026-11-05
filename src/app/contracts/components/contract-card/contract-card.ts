@@ -78,7 +78,11 @@ export class ContractCard {
     return this.rateNeeded() && rates.status === 'error' && rates.kind === 'unavailable';
   });
   /** Окремий computed: cardView змінюється й на кожну відповідь опитування, а форму вмикаємо лише при зміні editable. */
-  private readonly editable = computed(() => this.submission.cardView().editable);
+  protected readonly editable = computed(() => this.submission.cardView().editable);
+  /** Лише для комітету. У режимі читання — лише зі значенням: бекенд номер не повертає, порожнє поле нічого не означає. */
+  protected readonly showProtocolNumber = computed(
+    () => this.calc().route === 'COMMITTEE' && (this.editable() || !!this.value().protocolNumber),
+  );
   /** Надсилання недоступне, поки курс вантажиться або недоступний (не виправити у формі). */
   protected readonly ratesBlocked = computed(() => this.ratesLoading() || this.ratesUnavailable());
 

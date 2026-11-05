@@ -107,7 +107,7 @@ describe('SubmissionStore з MockBackend (chaos: timeout)', () => {
       protocolNumber: ` ${PROTOCOL} `,
     });
 
-    it('таймаут → повтор: той самий payload з номером, одна заявка; після 201 номер повертається при поверненні', async () => {
+    it('таймаут → повтор: той самий payload з номером, одна заявка', async () => {
       const { card, submission } = createStores();
       const create = vi.spyOn(TestBed.inject(ApprovalApi), 'create');
       card.open(CONTRACT_ID);
@@ -129,13 +129,6 @@ describe('SubmissionStore з MockBackend (chaos: timeout)', () => {
       const stats = backend.stats();
       expect(stats.approvalRequestsByContract).toEqual({ [CONTRACT_ID]: 1 });
       expect(stats.requestIdReusedWithDifferentPayload).toBe(0);
-
-      card.open(CONTRACT_ID + 1);
-      await vi.advanceTimersByTimeAsync(LOAD_MS);
-      expect(card.formData()?.protocolNumber).toBe('');
-      card.open(CONTRACT_ID);
-      await vi.advanceTimersByTimeAsync(LOAD_MS);
-      expect(card.formData()?.protocolNumber).toBe(PROTOCOL);
     });
 
     it('таймаут → F5, заявку ще не застосовано: відновлення повертає номер у форму', async () => {
@@ -153,25 +146,6 @@ describe('SubmissionStore з MockBackend (chaos: timeout)', () => {
       expect(second.card.contract()?.status).toBe('ON_APPROVAL');
       expect(second.card.formData()?.protocolNumber).toBe(PROTOCOL);
       expect(backend.stats().approvalRequestsByContract).toEqual({ [CONTRACT_ID]: 1 });
-    });
-
-    it('таймаут → F5, заявку вже застосовано: запис видаляється, номер лишається у формі', async () => {
-      const first = createStores();
-      first.card.open(CONTRACT_ID);
-      await vi.advanceTimersByTimeAsync(LOAD_MS);
-      first.submission.submit(committeeValue(first.card));
-      await vi.advanceTimersByTimeAsync(6000);
-
-      TestBed.resetTestingModule();
-      const second = createStores();
-      const create = vi.spyOn(TestBed.inject(ApprovalApi), 'create');
-      second.card.open(CONTRACT_ID);
-      await vi.advanceTimersByTimeAsync(LOAD_MS);
-
-      expect(create).not.toHaveBeenCalled();
-      expect(TestBed.inject(PendingSubmissionStorage).read(CONTRACT_ID)).toBeNull();
-      expect(second.card.contract()?.status).toBe('ON_APPROVAL');
-      expect(second.card.formData()?.protocolNumber).toBe(PROTOCOL);
     });
   });
 });

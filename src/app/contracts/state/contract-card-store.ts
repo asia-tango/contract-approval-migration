@@ -24,7 +24,6 @@ import {
 import { ExchangeRateService } from '../../../mock-backend';
 import { ApprovalApi } from '../data-access/approval-api';
 import { ContractsApi } from '../data-access/contracts-api';
-import { ProtocolNumberStorage } from '../data-access/protocol-number-storage';
 import { isNotFound, isRatesDateError } from '../helpers/api-error';
 import { toFormValue } from '../helpers/contract-mapper';
 import { ApprovalRequest, Contract, ContractFormValue, ContractStatus, Me, Rates } from '../models';
@@ -58,7 +57,6 @@ export class ContractCardStore {
   private readonly approvalApi = inject(ApprovalApi);
   private readonly rateService = inject(ExchangeRateService);
   private readonly listStore = inject(ContractListStore);
-  private readonly protocolStorage = inject(ProtocolNumberStorage);
 
   private readonly open$ = new Subject<number>();
   /** null — зупинити опитування. */
@@ -142,7 +140,7 @@ export class ContractCardStore {
           return;
         }
         this.loaded.set(contract);
-        this.formValue.set(this.formValueOf(contract));
+        this.formValue.set(toFormValue(contract));
         this.ratesKey$.next({ contractId: contract.id, date: contract.signDate });
         // Умова старту — лише при виборі договору (і «Повторити»), не при перечитуванні після рішення.
         const { status, lastApprovalRequestId: requestId } = contract;
@@ -224,12 +222,6 @@ export class ContractCardStore {
     this.formValue.set(value);
   }
 
-  /** Дані договору для форми. Номер протоколу бекенд не повертає — беремо збережений для останньої заявки договору. */
-  formValueOf(contract: Contract): ContractFormValue {
-    const protocolNumber = this.protocolStorage.read(contract.id, contract.lastApprovalRequestId);
-    return toFormValue(protocolNumber === null ? contract : { ...contract, protocolNumber });
-  }
-
   /** «Повторити» після помилки завантаження — як повторний вибір договору. */
   retryLoad(): void {
     const id = this.selected();
@@ -293,7 +285,7 @@ export class ContractCardStore {
     }).pipe(
       tap((contract) => {
         this.loaded.set(contract);
-        this.formValue.set(this.formValueOf(contract));
+        this.formValue.set(toFormValue(contract));
       }),
       catchError(() => EMPTY),
       finalize(() => this.reloading.set(false)),

@@ -58,6 +58,11 @@ h2 {
   }
 }
 
+// Рядок під полем dynamic: росте з текстом, порожній згортається. Відступ — висота порожнього рядка інших полів.
+.protocol-number {
+  margin-bottom: 16px;
+}
+
 .rates-banner {
   margin-bottom: 16px;
 }
