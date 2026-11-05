@@ -25,5 +25,9 @@
   }
 </div>
 @if (c.route === 'COMMITTEE') {
-  <app-banner type="warn" [text]="messages.committee" />
+  @if (approved()) {
+    <app-banner type="success" [text]="messages.committeeApproved" />
+  } @else {
+    <app-banner type="warn" [text]="messages.committee" />
+  }
 }

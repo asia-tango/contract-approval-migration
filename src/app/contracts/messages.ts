@@ -18,6 +18,7 @@ export const CARD_MESSAGES = {
   ratesUnavailable:
     'Не вдалося отримати курс НБУ на дату підписання. Еквівалент і маршрут погодження не розраховано, надсилання недоступне',
   committee: 'Потрібне погодження тендерного комітету',
+  committeeApproved: 'Погоджено тендерним комітетом',
 };
 
 export const SUBMIT_MESSAGES = {

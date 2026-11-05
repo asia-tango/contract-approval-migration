@@ -39,7 +39,12 @@
 
       <mat-checkbox formControlName="vatPayer">Платник ПДВ</mat-checkbox>
 
-      <app-contract-calc [calc]="calc()" [hint]="hint()" [ratesLoading]="ratesLoading()" />
+      <app-contract-calc
+        [calc]="calc()"
+        [hint]="hint()"
+        [ratesLoading]="ratesLoading()"
+        [approved]="c.status === 'APPROVED'"
+      />
 
       @if (showProtocolNumber()) {
         <mat-form-field class="protocol-number" subscriptSizing="dynamic">

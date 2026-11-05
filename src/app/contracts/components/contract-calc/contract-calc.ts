@@ -19,6 +19,8 @@ export class ContractCalc {
   /** Пояснення еквівалента для ⓘ; null — іконку не показуємо. */
   readonly hint = input<string | null>(null);
   readonly ratesLoading = input(false);
+  /** Договір погоджено: плашка комітету — «Погоджено тендерним комітетом». */
+  readonly approved = input(false);
 
   protected readonly messages = CARD_MESSAGES;
 }
