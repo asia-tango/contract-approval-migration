@@ -47,6 +47,5 @@ Thumbs.db
 # Angular cache (whole folder)
 /.angular
 
-# Not published: company task and AI working instructions
+# Not published: company task
 /legacy/TASK.md
-/CLAUDE.md
